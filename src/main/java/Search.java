@@ -248,7 +248,7 @@ public class Search {
         String expansion_method = "Metric";
         //String expansion_method = "None";
 
-        System.out.println(search.queryIndex(queryString, usePageRank,expansion_method));
+        System.out.println(search.queryIndex(queryString, usePageRank, expansion_method));
         search.close();
     }
 

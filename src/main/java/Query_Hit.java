@@ -26,6 +26,6 @@ public class Query_Hit {
         return url;
     }
 
-    public String expandedQuery(){return expanded_query;}
+    public String getExpanded_query(){ return expanded_query; }
 }
 
