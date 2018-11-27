@@ -167,6 +167,7 @@ public class IndexFiles {
                 String[] terms = queryTermVector.getTerms();
                 searcher.setSimilarity(new ClassicSimilarity());
                 similarity =(TFIDFSimilarity)searcher.getSimilarity(true);
+
                 ScoreDoc[] hits = searcher.search(query, hitsCount).scoreDocs;
                 System.out.println( "query" + " : " + query.toString() );
 
