@@ -46,7 +46,7 @@ public class Search {
         this.jsonMapper = new ObjectMapper();
     }
 
-    private List<Query_Hit> getHits(Query query, boolean usePageRank,String expansion_Method) throws IOException {
+    private Query_Hit getHits(Query query, boolean usePageRank,String expansion_Method) throws IOException {
         TopDocs results;
         ScoreDoc[] hits;
         int numTotalHits;
@@ -67,22 +67,23 @@ public class Search {
             results = searcher.search(query, MAX_RESULTS);
             hits = results.scoreDocs;
             numTotalHits = Math.toIntExact(results.totalHits);
-            List<Query_Hit> resultHits = new ArrayList<>();
+            List<Hit> resultHits = new ArrayList<>();
             for (int i = 0; i < numTotalHits; i++) {
                 Document doc = searcher.doc(hits[i].doc);
                 String path = doc.get("path");
                 String title = doc.get("title");    // will be null if title doesn't exist
                 // TODO: add url in index to get urls, for testing nulls are acceptable
                 String url = doc.get("url");        // will be null if url doesn't exist
-                resultHits.add(new Query_Hit(path, title, url," "));
+                resultHits.add(new Hit(path, title, url));
             }
-            return resultHits;
+            Query_Hit query_hit = new Query_Hit("",resultHits);
+            return query_hit;
         }
         else if(expansion_Method.toUpperCase().equals("ROCHIO"))
         {
             results = searcher.search(query, MAX_RESULTS);
             hits = results.scoreDocs;
-            List<Query_Hit> resultHits = new ArrayList<>();
+            List<Hit> resultHits = new ArrayList<>();
             TFIDFSimilarity similarity = null;
             searcher.setSimilarity(new ClassicSimilarity());
             similarity =(TFIDFSimilarity)searcher.getSimilarity(true);
@@ -113,16 +114,17 @@ public class Search {
                 String title = doc.get("title");    // will be null if title doesn't exist
                 // TODO: add url in index to get urls, for testing nulls are acceptable
                 String url = doc.get("url");        // will be null if url doesn't exist
-                resultHits.add(new Query_Hit(path, title, url,final_expanded_string));
+                resultHits.add(new Hit(path, title, url));
             }
-            return resultHits;
+            Query_Hit query_hit = new Query_Hit(final_expanded_string,resultHits);
+            return query_hit;
 
         }
         else if(expansion_Method.toUpperCase().equals("ASSOCIATION"))
         {
             results = searcher.search(query, MAX_RESULTS);
             hits = results.scoreDocs;
-            List<Query_Hit> resultHits = new ArrayList<>();
+            List<Hit> resultHits = new ArrayList<>();
             AssociationCluster queryExpansion = new AssociationCluster(searcher,analyzer);
             query = queryExpansion.local_cluster(query,hits);
             String[] expanded_query_string = query.toString().split("contents:");
@@ -149,16 +151,17 @@ public class Search {
                 String title = doc.get("title");    // will be null if title doesn't exist
                 // TODO: add url in index to get urls, for testing nulls are acceptable
                 String url = doc.get("url");        // will be null if url doesn't exist
-                resultHits.add(new Query_Hit(path, title, url,final_expanded_string));
+                resultHits.add(new Hit(path, title, url));
             }
-            return resultHits;
+            Query_Hit query_hit = new Query_Hit(final_expanded_string,resultHits);
+            return query_hit;
 
         }
         else if(expansion_Method.toUpperCase().equals("METRIC"))
         {
             results = searcher.search(query, MAX_RESULTS);
             hits = results.scoreDocs;
-            List<Query_Hit> resultHits = new ArrayList<>();
+            List<Hit> resultHits = new ArrayList<>();
             MetricCluster queryExpansion = new MetricCluster(searcher,analyzer);
             query = queryExpansion.local_cluster(query,hits);
             String[] expanded_query_string = query.toString().split("contents:");
@@ -185,25 +188,27 @@ public class Search {
                 String title = doc.get("title");    // will be null if title doesn't exist
                 // TODO: add url in index to get urls, for testing nulls are acceptable
                 String url = doc.get("url");        // will be null if url doesn't exist
-                resultHits.add(new Query_Hit(path, title, url,final_expanded_string));
+                resultHits.add(new Hit(path, title, url));
             }
-            return resultHits;
+            Query_Hit query_hit = new Query_Hit(final_expanded_string,resultHits);
+            return query_hit;
         }
         else {
 
             results = searcher.search(query, MAX_RESULTS);
             hits = results.scoreDocs;
             numTotalHits = Math.toIntExact(results.totalHits);
-            List<Query_Hit> resultHits = new ArrayList<>();
+            List<Hit> resultHits = new ArrayList<>();
             for (int i = 0; i < numTotalHits; i++) {
                 Document doc = searcher.doc(hits[i].doc);
                 String path = doc.get("path");
                 String title = doc.get("title");    // will be null if title doesn't exist
                 // TODO: add url in index to get urls, for testing nulls are acceptable
                 String url = doc.get("url");        // will be null if url doesn't exist
-                resultHits.add(new Query_Hit(path, title, url,""));
+                resultHits.add(new Hit(path, title, url));
             }
-            return resultHits;
+            Query_Hit query_hit = new Query_Hit("",resultHits);
+            return query_hit;
         }
 
 
@@ -221,7 +226,7 @@ public class Search {
         try {
             this.current_query = queryString;
             Query query = parser.parse(queryString);
-            List<Query_Hit> results = this.getHits(query, usePageRank,expansion_method);
+            Query_Hit results = this.getHits(query, usePageRank,expansion_method);
             return this.jsonMapper.writeValueAsString(results);
         } catch (IOException e) {
             return "ERROR with reading index, IOException";
@@ -246,7 +251,7 @@ public class Search {
 //        String expansion_method = "Rochio";
 //        String expansion_method = "Association";
         String expansion_method = "Metric";
-        //String expansion_method = "None";
+//        String expansion_method = "None";
 
         System.out.println(search.queryIndex(queryString, usePageRank, expansion_method));
         search.close();
