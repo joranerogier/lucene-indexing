@@ -64,7 +64,7 @@ public class IndexFiles {
                 + "in INDEX_PATH that can be searched with SearchFiles";
         // hard-coded fields below
         String indexPath = "index";
-        String docsPath = "/Users/apple/Documents/Manik/Classes/Fall_2018/Information_Retrieval/AssignmentSolutions/Cranfield/";
+        String docsPath = "";
         String queryFileName = "hw3.queries";
         boolean create = true;
 //        for (int i = 0; i < args.length; i++) {
