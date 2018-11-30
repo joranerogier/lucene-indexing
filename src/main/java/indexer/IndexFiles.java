@@ -1,47 +1,23 @@
-/*
- * Licensed to the Apache Software Foundation (ASF) under one or more
- * contributor license agreements.  See the NOTICE file distributed with
- * this work for additional information regarding copyright ownership.
- * The ASF licenses this file to You under the Apache License, Version 2.0
- * (the "License"); you may not use this file except in compliance with
- * the License.  You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+package indexer;
 
 import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.analysis.standard.StandardAnalyzer;
 import org.apache.lucene.document.*;
-import org.apache.lucene.index.*;
+import org.apache.lucene.index.IndexWriter;
+import org.apache.lucene.index.IndexWriterConfig;
 import org.apache.lucene.index.IndexWriterConfig.OpenMode;
-import org.apache.lucene.queryparser.classic.ParseException;
-import org.apache.lucene.queryparser.classic.QueryParser;
-import org.apache.lucene.search.IndexSearcher;
-import org.apache.lucene.search.Query;
-import org.apache.lucene.search.ScoreDoc;
-import org.apache.lucene.search.TopDocs;
-import org.apache.lucene.search.similarities.ClassicSimilarity;
-import org.apache.lucene.search.similarities.TFIDFSimilarity;
+import org.apache.lucene.index.Term;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.FSDirectory;
-import org.apache.lucene.util.BytesRef;
 
-
-
-import java.io.*;
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.nio.charset.Charset;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.*;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.util.Date;
-import java.util.StringTokenizer;
-import java.util.Vector;
 
 /**
  * Index all text files under a directory.
@@ -57,27 +33,25 @@ public class IndexFiles {
     /**
      * Index all text files under a directory.
      */
-    public static void main(String[] args) {
-        String usage = "java org.apache.lucene.demo.IndexFiles"
+    public static void main(String[] args) throws IOException {
+        String usage = "java org.apache.lucene.demo.indexer.IndexFiles"
                 + " [-index INDEX_PATH] [-docs DOCS_PATH] [-update]\n\n"
                 + "This indexes the documents in DOCS_PATH, creating a Lucene index"
-                + "in INDEX_PATH that can be searched with SearchFiles";
-        // hard-coded fields below
+                + "in INDEX_PATH that can be searched with searcher.SearchFiles";
         String indexPath = "index";
-        String docsPath = "";
-        String queryFileName = "hw3.queries";
+        String docsPath = null;
         boolean create = true;
-//        for (int i = 0; i < args.length; i++) {
-//            if ("-index".equals(args[i])) {
-//                indexPath = args[i + 1];
-//                i++;
-//            } else if ("-docs".equals(args[i])) {
-//                docsPath = args[i + 1];
-//                i++;
-//            } else if ("-update".equals(args[i])) {
-//                create = false;
-//            }
-//        }
+        for (int i = 0; i < args.length; i++) {
+            if ("-index".equals(args[i])) {
+                indexPath = args[i + 1];
+                i++;
+            } else if ("-docs".equals(args[i])) {
+                docsPath = args[i + 1];
+                i++;
+            } else if ("-update".equals(args[i])) {
+                create = false;
+            }
+        }
 
         if (docsPath == null) {
             System.err.println("Usage: " + usage);
@@ -129,78 +103,12 @@ public class IndexFiles {
 
             Date end = new Date();
             System.out.println(end.getTime() - start.getTime() + " total milliseconds");
-            IndexReader idxReader = DirectoryReader.open(FSDirectory.open(Paths.get(indexPath)));
-            IndexSearcher searcher = new IndexSearcher(idxReader);
-            BufferedReader in = new BufferedReader( new FileReader( queryFileName ) );
-            TFIDFSimilarity similarity = null;
-            int hitsCount = 50;
-            String query_num = null;
-            Vector<String> b=new Vector<String>();
-            String line;
-            while((line = in.readLine())!=null)
-            {
-
-                try{
-                    if(line.length() == -1)
-                        break;
-                }
-                catch (Exception e)
-                {
-                    System.out.println(e.getMessage());
-                    return;
-                }
-                StringTokenizer tknzr = new StringTokenizer(line);
-                query_num = tknzr.nextToken();
-                line = line.substring( query_num.length() ).trim();
-                String queryStr = line;
-                queryStr = QueryParser.escape(queryStr);
-                QueryParser parser = new QueryParser("contents",analyzer);
-                Query query=null;
-                try {
-                    query = parser.parse(queryStr);
-                }
-                catch (ParseException p)
-                {
-                    System.out.println(p.getMessage());
-                }
-                QueryTermVector queryTermVector = new QueryTermVector( line, analyzer );
-                String[] terms = queryTermVector.getTerms();
-                searcher.setSimilarity(new ClassicSimilarity());
-                similarity =(TFIDFSimilarity)searcher.getSimilarity(true);
-
-                ScoreDoc[] hits = searcher.search(query, hitsCount).scoreDocs;
-                System.out.println( "query" + " : " + query.toString() );
-
-                /*
-                Un comment any 1 of the algorithms to test
-                QueryExpansion: Rocchio line 180 and 181
-                Association Cluster line 182 and 183
-                Metric Cluster line 184 and 185
-                 */
-                //System.out.println( hits.totalHits + " total matching documents" );
-                //QueryExpansion queryExpansion = new QueryExpansion(analyzer, searcher, similarity);
-                //query = queryExpansion.expandQuery(queryStr,hits);
-//                AssociationCluster asc_cluster = new AssociationCluster(searcher,analyzer);
-//                asc_cluster.local_cluster(query,hits);
-                MetricCluster mc_cluster = new MetricCluster(searcher,analyzer);
-                mc_cluster.local_cluster(query,hits);
-                ScoreDoc[] hits1 = searcher.search(query,hitsCount).scoreDocs;
-                int hits_len = hits1.length;
-
-                for ( int i = 0; ( ( i < 1 ) && ( i < hits_len ) ); i++ ) {
-                    b.add(searcher.doc(hits1[i].doc).get("path"));
-                }
-
-            }
-
-          for (int i=0;i<b.size();i++)
-          {
-              System.out.println(b.elementAt(i));
-          }
-        } catch (IOException e) {
+        } catch (
+                IOException e) {
             System.out.println(" caught a " + e.getClass() +
                     "\n with message: " + e.getMessage());
         }
+
     }
 
     /**
@@ -264,14 +172,13 @@ public class IndexFiles {
             // so that the text of the file is tokenized and indexed, but not stored.
             // Note that FileReader expects the file to be in UTF-8 encoding.
             // If that's not the case searching for special characters will fail.
-
-             BufferedReader br= new BufferedReader(new InputStreamReader(stream, Charset.forName("UTF-8")));
-             StringBuffer sb = new StringBuffer();
-             String sCurrentLine;
-             while ((sCurrentLine=br.readLine())!=null){
-             sb.append(sCurrentLine);
-             }
-             doc.add(new TextField("contents",sb.toString(), Field.Store.YES));
+            BufferedReader br = new BufferedReader(new InputStreamReader(stream, Charset.forName("UTF-8")));
+            StringBuffer sb = new StringBuffer();
+            String sCurrentLine;
+            while ((sCurrentLine = br.readLine()) != null) {
+                sb.append(sCurrentLine);
+            }
+            doc.add(new TextField("contents", sb.toString(), Field.Store.YES));
 
             if (writer.getConfig().getOpenMode() == OpenMode.CREATE) {
                 // New index, so we just add the document (no old document can be there):

@@ -1,13 +1,13 @@
-import org.apache.lucene.search.ScoreDoc;
+package searcher;
 
 import java.util.List;
 
-public class Query_Hit {
+public class QueryHit {
 
     private String expanded_query;
     private List<Hit> hits;
 
-    public Query_Hit(String expanded_query, List<Hit> hits) {
+    public QueryHit(String expanded_query, List<Hit> hits) {
         this.hits = hits;
         this.expanded_query = expanded_query;
     }
@@ -18,6 +18,8 @@ public class Query_Hit {
         return hits;
     }
 
-    public String getExpanded_query(){ return expanded_query; }
+    public String getExpanded_query() {
+        return expanded_query;
+    }
 }
 

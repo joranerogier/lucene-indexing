@@ -1,19 +1,19 @@
-import java.io.*;
+package queryExpansion;
 
 /**
- * Stemmer, implementing the Porter Stemming Algorithm
- *
- * The Stemmer class transforms a word into its root form.  The input
+ * queryExpansion.Stemmer, implementing the Porter Stemming Algorithm
+ * <p>
+ * The queryExpansion.Stemmer class transforms a word into its root form.  The input
  * word can be provided a character at time (by calling add()), or at once
  * by calling one of the various stem(something) methods.
  */
 
 class Stemmer {
+    private static final int INC = 50;
     private char[] b;
     private int i,     /* offset into b */
             i_end, /* offset to end of stemmed word */
             j, k;
-    private static final int INC = 50;
 
     /* unit of size whereby b is increased */
     public Stemmer() {
@@ -88,7 +88,7 @@ class Stemmer {
             case 'u':
                 return false;
             case 'y':
-                return (i == 0) ? true : !cons(i - 1);
+                return (i == 0) || !cons(i - 1);
             default:
                 return true;
         }
@@ -160,9 +160,8 @@ class Stemmer {
         if (i < 2 || !cons(i) || cons(i - 1) || !cons(i - 2)) return false;
         {
             int ch = b[i];
-            if (ch == 'w' || ch == 'x' || ch == 'y') return false;
+            return ch != 'w' && ch != 'x' && ch != 'y';
         }
-        return true;
     }
 
     private final boolean ends(String s) {
@@ -462,7 +461,7 @@ class Stemmer {
     }
 
     /**
-     * Stem the word placed into the Stemmer buffer through calls to add().
+     * Stem the word placed into the queryExpansion.Stemmer buffer through calls to add().
      * Returns true if the stemming process resulted in a word different
      * from the input.  You can retrieve the result with
      * getResultLength()/getResultBuffer() or toString().

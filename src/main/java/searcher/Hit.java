@@ -1,4 +1,4 @@
-import org.apache.lucene.search.ScoreDoc;
+package searcher;
 
 public class Hit {
     private String path;
