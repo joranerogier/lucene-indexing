@@ -144,19 +144,21 @@ public class Search {
      *
      * @param queryString the actual query entered by the user
      * @param usePageRank whether to use pagerank or not
-     * @return results in json format
+     * @return QueryHit object
      */
-    public String queryIndex(String queryString, boolean usePageRank, String expansionMethod) {
+    public QueryHit queryIndex(String queryString, boolean usePageRank, String expansionMethod) {
         try {
             this.currentQuery = queryString;
             Query query = parser.parse(queryString);
             QueryHit results = this.getHits(query, usePageRank, expansionMethod);
-            return this.jsonMapper.writeValueAsString(results);
+            return results;
         } catch (IOException e) {
-            return "ERROR with reading index, IOException";
+            System.out.println("ERROR with reading index, IOException");
         } catch (ParseException e) {
-            return "ERROR with parsing query, ParseException";
+            System.out.println("ERROR with parsing query, ParseException");
         }
+        List<Hit> empty = new ArrayList<>();
+        return new QueryHit("", empty);
     }
 
     /**
