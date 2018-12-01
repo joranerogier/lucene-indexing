@@ -1,5 +1,6 @@
 package indexer;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.analysis.standard.StandardAnalyzer;
 import org.apache.lucene.document.*;
@@ -15,8 +16,10 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.nio.charset.Charset;
-import java.nio.file.*;
-import java.nio.file.attribute.BasicFileAttributes;
+import java.nio.file.Files;
+import java.nio.file.NoSuchFileException;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.Date;
 
 /**
@@ -35,11 +38,13 @@ public class IndexFiles {
      */
     public static void main(String[] args) throws IOException {
         String usage = "java org.apache.lucene.demo.indexer.IndexFiles"
-                + " [-index INDEX_PATH] [-docs DOCS_PATH] [-update]\n\n"
+                + " [-index INDEX_PATH] [-docs DOCS_PATH] [-metadata METADATA_PATH] [-update]\n\n"
                 + "This indexes the documents in DOCS_PATH, creating a Lucene index"
                 + "in INDEX_PATH that can be searched with searcher.SearchFiles";
         String indexPath = "index";
         String docsPath = null;
+        String metadataPath = null;
+        ;
         boolean create = true;
         for (int i = 0; i < args.length; i++) {
             if ("-index".equals(args[i])) {
@@ -50,10 +55,13 @@ public class IndexFiles {
                 i++;
             } else if ("-update".equals(args[i])) {
                 create = false;
+            } else if ("-metadata".equals(args[i])) {
+                metadataPath = args[i + 1];
+                i++;
             }
         }
 
-        if (docsPath == null) {
+        if (docsPath == null || metadataPath == null) {
             System.err.println("Usage: " + usage);
             System.exit(1);
         }
@@ -63,6 +71,14 @@ public class IndexFiles {
             System.out.println("Document directory '" + docDir.toAbsolutePath() + "' does not exist or is not readable, please check the path");
             System.exit(1);
         }
+
+        // parse metadata file, a json file
+        byte[] jsonData = Files.readAllBytes(Paths.get(metadataPath));
+        String s = new String(jsonData);
+        ObjectMapper objectMapper = new ObjectMapper();
+
+        // json to object
+        MetaField[] metaFields = objectMapper.readValue(s, MetaField[].class);
 
         Date start = new Date();
         try {
@@ -89,7 +105,9 @@ public class IndexFiles {
             // iwc.setRAMBufferSizeMB(256.0);
 
             IndexWriter writer = new IndexWriter(dir, iwc);
-            indexDocs(writer, docDir);
+            for (MetaField field : metaFields) {
+                indexDoc(writer, field, Paths.get(docsPath, field.getRecno()));
+            }
 
             // NOTE: if you want to maximize search performance,
             // you can optionally call forceMerge here.  This can be
@@ -112,66 +130,40 @@ public class IndexFiles {
     }
 
     /**
-     * Indexes the given file using the given writer, or if a directory is given,
-     * recurses over files and directories found under the given directory.
-     * <p>
-     * NOTE: This method indexes one document per input file.  This is slow.  For good
-     * throughput, put multiple documents into your input file(s).  An example of this is
-     * in the benchmark module, which can create "line doc" files, one document per line,
-     * using the
-     * <a href="../../../../../contrib-benchmark/org/apache/lucene/benchmark/byTask/tasks/WriteLineDocTask.html"
-     * >WriteLineDocTask</a>.
-     *
-     * @param writer Writer to the index where the given file/dir info will be stored
-     * @param path   The file to index, or the directory to recurse into to find files to index
-     * @throws IOException If there is a low-level I/O error
-     */
-    static void indexDocs(final IndexWriter writer, Path path) throws IOException {
-        if (Files.isDirectory(path)) {
-            Files.walkFileTree(path, new SimpleFileVisitor<Path>() {
-                @Override
-                public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
-                    try {
-                        indexDoc(writer, file, attrs.lastModifiedTime().toMillis());
-                    } catch (IOException ignore) {
-                        // don't index files that can't be read.
-                    }
-                    return FileVisitResult.CONTINUE;
-                }
-            });
-        } else {
-            indexDoc(writer, path, Files.getLastModifiedTime(path).toMillis());
-        }
-    }
-
-    /**
      * Indexes a single document
      */
-    static void indexDoc(IndexWriter writer, Path file, long lastModified) throws IOException {
+    static void indexDoc(IndexWriter writer, MetaField fields, Path file) throws IOException {
         try (InputStream stream = Files.newInputStream(file)) {
             // make a new, empty document
             Document doc = new Document();
 
-            // Add the path of the file as a field named "path".  Use a
-            // field that is indexed (i.e. searchable), but don't tokenize
-            // the field into separate words and don't index term frequency
-            // or positional information:
             Field pathField = new StringField("path", file.toString(), Field.Store.YES);
             doc.add(pathField);
 
-            // Add the last modified date of the file a field named "modified".
-            // Use a LongPoint that is indexed (i.e. efficiently filterable with
-            // PointRangeQuery).  This indexes to milli-second resolution, which
-            // is often too fine.  You could instead create a number based on
-            // year/month/day/hour/minutes/seconds, down the resolution you require.
-            // For example the long value 2011021714 would mean
-            // February 17, 2011, 2-3 PM.
+            // Add the pagerank of the file to a FeatureField named feature with feature name pagerank
+            // For testing this feature, assign use the document id as pagerank
+            Float pagerankScore = fields.getPagerank();
+            if (pagerankScore == 0.0f) {
+                pagerankScore = 0.000001f;
+            }
+            FeatureField pagerank = new FeatureField("feature", "pagerank", pagerankScore);
+            doc.add(pagerank);
+
+            // Add the URL of the file to a field name TextField with name url.
+            Field url = new TextField("url", fields.getUrl(), Field.Store.YES);
+            doc.add(url);
+
+            // Add the title of the file as a TextField, makes it searchable
+            String titleText = fields.getTitle();
+            if (titleText == null) {
+                titleText = fields.getUrl();
+            }
+            Field title = new TextField("title", titleText, Field.Store.YES);
+            doc.add(title);
+
+            long lastModified = Files.getLastModifiedTime(file).toMillis();
             doc.add(new LongPoint("modified", lastModified));
 
-            // Add the contents of the file to a field named "contents".  Specify a Reader,
-            // so that the text of the file is tokenized and indexed, but not stored.
-            // Note that FileReader expects the file to be in UTF-8 encoding.
-            // If that's not the case searching for special characters will fail.
             BufferedReader br = new BufferedReader(new InputStreamReader(stream, Charset.forName("UTF-8")));
             StringBuffer sb = new StringBuffer();
             String sCurrentLine;
@@ -191,6 +183,8 @@ public class IndexFiles {
                 System.out.println("updating tr" + file);
                 writer.updateDocument(new Term("path", file.toString()), doc);
             }
+        } catch (NoSuchFileException e) {
+            System.out.println("File not found" + e.getMessage());
         }
     }
 }
