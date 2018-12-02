@@ -23,4 +23,13 @@ public class Hit {
     public String getUrl() {
         return url;
     }
+
+    @Override
+    public String toString() {
+        return "Hit{" +
+                "path='" + path + '\'' +
+                ", title='" + title + '\'' +
+                ", url='" + url + '\'' +
+                '}';
+    }
 }

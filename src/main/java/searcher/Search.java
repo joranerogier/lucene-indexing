@@ -53,13 +53,13 @@ public class Search {
     public static void main(String[] args) throws IOException {
         Search search = new Search("index");
         boolean usePageRank = true;
-        String queryString = "similarity";
+        String queryString = "amazon fresh";
         String expansionMethod = "Metric";  // other options "Rochio", "Association", "None"
         System.out.println(search.queryIndex(queryString, usePageRank, expansionMethod));
         search.close();
     }
 
-    private String createExpandedQuery(Query query) {
+    private String createExpandedQueryString(Query query) {
         String[] expandedQueryString = query.toString().split("contents:");
         StringBuilder sb = new StringBuilder();
         Vector<String> sbTerms = new Vector<String>();
@@ -80,48 +80,61 @@ public class Search {
         TopDocs results;
         ScoreDoc[] hits;
         int numTotalHits;
+        Query originalQuery = query;    // warning: check if java modifies originalQuery if we modify query
+
         // Lucene's way of doing things, modify query to incorporate pagerank
         if (usePageRank) {
-            Query boost = FeatureField.newLogQuery("feature", "pagerank", 0.2f, 4.5f);
-            Query boostedQuery = new BooleanQuery.Builder()
-                    .add(query, BooleanClause.Occur.MUST)
-                    .add(boost, BooleanClause.Occur.SHOULD)
-                    .build();
-            query = boostedQuery;
+            query = getPageRankBoostedQuery(query);
         }
 
         // for query expansion, work with the results of regular search
         results = searcher.search(query, MAX_RESULTS);
         hits = results.scoreDocs;
         String finalExpandedQueryString = "";
+        Query expandedQuery = null;
 
         // case insensitive
-        if (expansionMethod.toUpperCase().equals("NONE")) {
-            // no change to query
-            finalExpandedQueryString = "";
-        } else if (expansionMethod.toUpperCase().equals("ROCHIO")) {
-            TFIDFSimilarity similarity = null;
-            searcher.setSimilarity(new ClassicSimilarity());
-            similarity = (TFIDFSimilarity) searcher.getSimilarity(true);
-            QueryTermVector queryTermVector = new QueryTermVector(this.currentQuery, analyzer);
-            QueryExpansion queryExpansion = new QueryExpansion(analyzer, searcher, similarity);
-            query = queryExpansion.expandQuery(this.currentQuery, hits);
-            finalExpandedQueryString = createExpandedQuery(query);
-        } else if (expansionMethod.toUpperCase().equals("ASSOCIATION")) {
-            AssociationCluster queryExpansion = new AssociationCluster(searcher, analyzer);
-            query = queryExpansion.localCluster(query, hits);
-            finalExpandedQueryString = createExpandedQuery(query);
-        } else if (expansionMethod.toUpperCase().equals("METRIC")) {
-            MetricCluster queryExpansion = new MetricCluster(searcher, analyzer);
-            query = queryExpansion.localCluster(query, hits);
-            finalExpandedQueryString = createExpandedQuery(query);
-        } else {
-            // no change to query
-            finalExpandedQueryString = "";
+        String expansionMethodUpper = expansionMethod.toUpperCase();
+
+        switch (expansionMethodUpper) {
+            case "NONE":
+                // no change to query
+                finalExpandedQueryString = "";
+                break;
+
+            case "ROCHIO":
+                TFIDFSimilarity similarity = null;
+                searcher.setSimilarity(new ClassicSimilarity());
+                similarity = (TFIDFSimilarity) searcher.getSimilarity(true);
+                QueryTermVector queryTermVector = new QueryTermVector(this.currentQuery, analyzer);
+                QueryExpansion queryExpansion = new QueryExpansion(analyzer, searcher, similarity);
+                expandedQuery = queryExpansion.expandQuery(this.currentQuery, hits);
+                finalExpandedQueryString = createExpandedQueryString(expandedQuery);
+                break;
+
+            case "ASSOCIATION":
+                AssociationCluster associationCluster = new AssociationCluster(searcher, analyzer);
+                expandedQuery = associationCluster.localCluster(originalQuery, hits);
+                finalExpandedQueryString = createExpandedQueryString(expandedQuery);
+                break;
+
+            case "METRIC":
+                MetricCluster metricCluster = new MetricCluster(searcher, analyzer);
+                expandedQuery = metricCluster.localCluster(originalQuery, hits);
+                finalExpandedQueryString = createExpandedQueryString(expandedQuery);
+                break;
+
+            default:
+                // no change to query
+                finalExpandedQueryString = "";
+                break;
         }
 
+        // search again with expanded query and return the new results
         if (!"".equals(finalExpandedQueryString)) {
-            // search again with expanded query and return the new results
+            if (usePageRank) {
+                query = getPageRankBoostedQuery(expandedQuery);
+            }
             results = searcher.search(query, MAX_RESULTS);
             hits = results.scoreDocs;
         }
@@ -137,6 +150,22 @@ public class Search {
         }
         QueryHit queryHit = new QueryHit(finalExpandedQueryString, resultHits);
         return queryHit;
+    }
+
+    /**
+     * Boosts provided query using pagerank.
+     *
+     * @param query query to boost
+     * @return boosted query
+     */
+    private Query getPageRankBoostedQuery(Query query) {
+        Query boost = FeatureField.newLogQuery("feature", "pagerank", 0.2f, 4.5f);
+        Query boostedQuery = new BooleanQuery.Builder()
+                .add(query, BooleanClause.Occur.MUST)
+                .add(boost, BooleanClause.Occur.SHOULD)
+                .build();
+        query = boostedQuery;
+        return query;
     }
 
     /**

@@ -21,5 +21,17 @@ public class QueryHit {
     public String getExpanded_query() {
         return expanded_query;
     }
+
+    @Override
+    public String toString() {
+        StringBuilder sb = new StringBuilder();
+        for (Hit h : hits) {
+            sb.append(h);
+            sb.append("\n");
+        }
+        return "expanded_query='" + expanded_query + '\'' +
+                ", hits:\n" + sb.toString() +
+                '}';
+    }
 }
 
