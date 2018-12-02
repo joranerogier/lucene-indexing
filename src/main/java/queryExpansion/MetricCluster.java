@@ -33,8 +33,16 @@ public class MetricCluster {
 
     public Query localCluster(Query query, ScoreDoc[] hits) throws IOException {
         Vector<Document> local_docs = new Vector<Document>();
-        for (int i = 0; i < 10; i++) {
-            local_docs.add(searcher.doc(hits[i].doc));
+        if(hits.length>=10)
+        {
+            for (int i = 0; i < 10; i++) {
+                local_docs.add(searcher.doc(hits[i].doc));
+            }
+        }
+        else {
+            for (int i = 0; i < hits.length; i++) {
+                local_docs.add(searcher.doc(hits[i].doc));
+            }
         }
         Vector<QueryDoc> DocVector = convert_to_doc_vector(local_docs);
         Document doc = new Document();
