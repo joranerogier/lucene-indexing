@@ -51,7 +51,7 @@ public class Search {
         Search search = new Search("index");
         boolean usePageRank = true;
         String queryString = "pepperoni pizza";
-        String expansionMethod = "Association";  // other options "Rochio", "Association", "None"
+        String expansionMethod = "metric";  // other options "Rochio", "Association", "None", "Metric"
         System.out.println(search.queryIndex(queryString, usePageRank, expansionMethod));
         search.close();
     }
@@ -126,6 +126,7 @@ public class Search {
                 expandedQuery = scalarCluster.localCluster(originalQuery,hits);
                 finalExpandedQueryString = createExpandedQueryString(expandedQuery);
                 break;
+
             default:
                 // no change to query
                 finalExpandedQueryString = "";
