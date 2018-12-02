@@ -97,10 +97,14 @@ public class MetricCluster {
                 if (stems.containsKey(terms.get(i))) {
                     //do nothing, taking the smallest possible position
                 } else {
-                    if (!this.vocab.contains(terms.get(i))) {
+                    if (!this.vocab.contains(terms.get(i))&&!terms.get(i).chars().anyMatch(Character::isDigit)) {
                         this.vocab.add(terms.get(i));
                     }
-                    stems.put(terms.get(i), ++position);
+                    if(!terms.get(i).chars().anyMatch(Character::isDigit))
+                    {
+                        stems.put(terms.get(i), ++position);
+                    }
+
                 }
             }
             return stems;

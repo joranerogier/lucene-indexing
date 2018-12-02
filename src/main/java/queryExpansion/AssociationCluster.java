@@ -151,10 +151,14 @@ public class AssociationCluster {
                     stems.remove(terms.get(i));
                     stems.put(terms.get(i), freq);
                 } else {
-                    if (!this.vocab.contains(terms.get(i))) {
+                    if (!this.vocab.contains(terms.get(i))&&!terms.get(i).chars().anyMatch(Character::isDigit)) {
                         this.vocab.add(terms.get(i));
                     }
-                    stems.put(terms.get(i), 1);
+                    if(!terms.get(i).chars().anyMatch(Character::isDigit))
+                    {
+                        stems.put(terms.get(i), 1);
+                    }
+
                 }
             }
             return stems;

@@ -50,8 +50,8 @@ public class Search {
     public static void main(String[] args) throws IOException {
         Search search = new Search("index");
         boolean usePageRank = true;
-        String queryString = "pizza";
-        String expansionMethod = "Metric";  // other options "Rochio", "Association", "None"
+        String queryString = "pepperoni pizza";
+        String expansionMethod = "Association";  // other options "Rochio", "Association", "None"
         System.out.println(search.queryIndex(queryString, usePageRank, expansionMethod));
         search.close();
     }
