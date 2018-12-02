@@ -13,10 +13,7 @@ import org.apache.lucene.search.*;
 import org.apache.lucene.search.similarities.ClassicSimilarity;
 import org.apache.lucene.search.similarities.TFIDFSimilarity;
 import org.apache.lucene.store.FSDirectory;
-import queryExpansion.AssociationCluster;
-import queryExpansion.MetricCluster;
-import queryExpansion.QueryExpansion;
-import queryExpansion.QueryTermVector;
+import queryExpansion.*;
 
 import java.io.IOException;
 import java.nio.file.Paths;
@@ -53,7 +50,7 @@ public class Search {
     public static void main(String[] args) throws IOException {
         Search search = new Search("index");
         boolean usePageRank = true;
-        String queryString = "amazon fresh";
+        String queryString = "pizza";
         String expansionMethod = "Metric";  // other options "Rochio", "Association", "None"
         System.out.println(search.queryIndex(queryString, usePageRank, expansionMethod));
         search.close();
@@ -124,6 +121,11 @@ public class Search {
                 finalExpandedQueryString = createExpandedQueryString(expandedQuery);
                 break;
 
+            case "SCALAR":
+                ScalarCluster scalarCluster = new ScalarCluster(searcher,analyzer);
+                expandedQuery = scalarCluster.localCluster(originalQuery,hits);
+                finalExpandedQueryString = createExpandedQueryString(expandedQuery);
+                break;
             default:
                 // no change to query
                 finalExpandedQueryString = "";
